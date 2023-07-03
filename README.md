@@ -14,5 +14,10 @@ options:
 ## Example
 
 ````
+# installation
+git clone https://github.com/Haxxnet/nmap2urls && cd nmap2urls
+pip install -r requirements.txt
+
+# extracting urls from nmap file
 python3 nmap2urls.py --file my_nmap_scan.xml
 ````
