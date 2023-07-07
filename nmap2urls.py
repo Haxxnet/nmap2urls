@@ -1,5 +1,6 @@
 import argparse
 import os
+import httpx
 from libnmap.parser import NmapParser
 
 def extract_http_urls_from_nmap_xml(path):
@@ -10,14 +11,25 @@ def extract_http_urls_from_nmap_xml(path):
 
     for host in report.hosts:
         for service in host.services:
-            if (service.state == "open") and ("http" in service.service):
+            #if (service.state == "open") and ("http" in service.service):
+            if (service.state == "open"):
                 line = "http{s}://{hostname}:{port}"
                 line = line.replace("{hostname}", host.address if not host.hostnames else host.hostnames[0]) # TODO: Fix naive code.
                 line = line.replace("{hostnames}", host.address if not host.hostnames else ", ".join(list(set(host.hostnames)))) # TODO: Fix naive code.
                 line = line.replace("{ip}", host.address)
                 line = line.replace("{s}", "s" if (service.tunnel == "ssl" or "https" in service.service) else "")
                 line = line.replace("{port}", str(service.port))
-                urls.append(line)
+
+                # add url, if nmap already identified the port as http service
+                if ("http" in service.service):
+                    urls.append(line)
+                # otherwise actively probe via httpx
+                else:
+                    try:
+                        r = httpx.get(line, verify=False, timeout=10)
+                        urls.append(line)
+                    except Exception as e:
+                        continue
 
     for url in list(dict.fromkeys(urls)):
         print(url)
