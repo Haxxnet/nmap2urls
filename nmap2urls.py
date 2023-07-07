@@ -31,9 +31,9 @@ def extract_http_urls_from_nmap_xml(path):
                     except Exception as e:
                         try:
                             if line.startswith('http://'):
-                                line.replace("http://", "https://")
+                                line = line.replace("http://", "https://")
                             elif line.startswith('https://'):
-                                line.replace("https://", "http://")
+                                line = line.replace("https://", "http://")
                             r = httpx.get(line, verify=False)
                             urls.append(line)
                         except Exception as e:
