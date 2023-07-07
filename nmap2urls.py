@@ -26,10 +26,18 @@ def extract_http_urls_from_nmap_xml(path):
                 # otherwise actively probe via httpx
                 else:
                     try:
-                        r = httpx.get(line, verify=False, timeout=10)
+                        r = httpx.get(line, verify=False)
                         urls.append(line)
                     except Exception as e:
-                        continue
+                        try:
+                            if line.startswith('http://'):
+                                line.replace("http://", "https://")
+                            elif line.startswith('https://'):
+                                line.replace("https://", "http://")
+                            r = httpx.get(line, verify=False)
+                            urls.append(line)
+                        except Exception as e:
+                            continue
 
     for url in list(dict.fromkeys(urls)):
         print(url)
