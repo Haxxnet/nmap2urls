@@ -35,7 +35,7 @@ async def extract_http_urls_from_nmap_xml(path):
 async def probe_url(url, urls):
     try:
         async with httpx.AsyncClient(verify=False) as client:
-            r = await client.get(url, timeout=3)
+            r = await client.get(url, timeout=60)
             urls.append(url)
     except:
         try:
@@ -44,7 +44,7 @@ async def probe_url(url, urls):
             elif url.startswith('https://'):
                 url = url.replace("https://", "http://")
             async with httpx.AsyncClient(verify=False) as client:
-                r = await client.get(url, timeout=3)
+                r = await client.get(url, timeout=60)
                 urls.append(url)
         except:
             pass
