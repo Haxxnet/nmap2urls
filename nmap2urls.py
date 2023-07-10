@@ -1,46 +1,54 @@
 import argparse
 import os
+import asyncio
 import httpx
 from libnmap.parser import NmapParser
 
-def extract_http_urls_from_nmap_xml(path):
-    nmap_file = path 
+async def extract_http_urls_from_nmap_xml(path):
+    nmap_file = path
 
     report = NmapParser.parse_fromfile(nmap_file)
     urls = []
 
-    for host in report.hosts:
-        for service in host.services:
-            #if (service.state == "open") and ("http" in service.service):
-            if (service.state == "open"):
-                line = "http{s}://{hostname}:{port}"
-                line = line.replace("{hostname}", host.address if not host.hostnames else host.hostnames[0]) # TODO: Fix naive code.
-                line = line.replace("{hostnames}", host.address if not host.hostnames else ", ".join(list(set(host.hostnames)))) # TODO: Fix naive code.
-                line = line.replace("{ip}", host.address)
-                line = line.replace("{s}", "s" if (service.tunnel == "ssl" or "https" in service.service) else "")
-                line = line.replace("{port}", str(service.port))
+    async with httpx.AsyncClient(verify=False) as client:
+        tasks = []
+        for host in report.hosts:
+            for service in host.services:
+                if service.state == "open":
+                    line = "http{s}://{hostname}:{port}"
+                    line = line.replace("{hostname}", host.address if not host.hostnames else host.hostnames[0])
+                    line = line.replace("{hostnames}", host.address if not host.hostnames else ", ".join(list(set(host.hostnames))))
+                    line = line.replace("{ip}", host.address)
+                    line = line.replace("{s}", "s" if (service.tunnel == "ssl" or "https" in service.service) else "")
+                    line = line.replace("{port}", str(service.port))
 
-                # add url, if nmap already identified the port as http service
-                if ("http" in service.service):
-                    urls.append(line)
-                # otherwise actively probe via httpx
-                else:
-                    try:
-                        r = httpx.get(line, verify=False, timeout=3)
+                    if "http" in service.service:
                         urls.append(line)
-                    except Exception as e:
-                        try:
-                            if line.startswith('http://'):
-                                line = line.replace("http://", "https://")
-                            elif line.startswith('https://'):
-                                line = line.replace("https://", "http://")
-                            r = httpx.get(line, verify=False, timeout=3)
-                            urls.append(line)
-                        except Exception as e:
-                            continue
+                    else:
+                        tasks.append(probe_url(line, urls))
+
+        await asyncio.gather(*tasks)
 
     for url in list(dict.fromkeys(urls)):
         print(url)
+
+async def probe_url(url, urls):
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            r = await client.get(url, timeout=3)
+            urls.append(url)
+    except:
+        try:
+            if url.startswith('http://'):
+                url = url.replace("http://", "https://")
+            elif url.startswith('https://'):
+                url = url.replace("https://", "http://")
+            async with httpx.AsyncClient(verify=False) as client:
+                r = await client.get(url, timeout=3)
+                if r.status_code == 200:
+                    urls.append(url)
+        except:
+            pass
 
 def main():
     parser = argparse.ArgumentParser("nmap2urls.py")
@@ -49,7 +57,7 @@ def main():
 
     if os.path.exists(args.file):
         try:
-            extract_http_urls_from_nmap_xml(args.file)
+            asyncio.run(extract_http_urls_from_nmap_xml(args.file))
         except:
             print("[x] Error - Cannot process nmap xml file")
     else:
