@@ -45,8 +45,7 @@ async def probe_url(url, urls):
                 url = url.replace("https://", "http://")
             async with httpx.AsyncClient(verify=False) as client:
                 r = await client.get(url, timeout=3)
-                if r.status_code == 200:
-                    urls.append(url)
+                urls.append(url)
         except:
             pass
 
