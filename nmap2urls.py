@@ -21,6 +21,7 @@ async def extract_http_urls_from_nmap_xml(path):
                     line = line.replace("{ip}", host.address)
                     line = line.replace("{s}", "s" if (service.tunnel == "ssl" or "https" in service.service) else "")
                     line = line.replace("{port}", str(service.port))
+                    line = line.replace("httpss://", "https://")
 
                     if "http" in service.service:
                         urls.append(line)
